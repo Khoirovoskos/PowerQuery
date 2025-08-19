@@ -1,14 +1,13 @@
 ```
 = (data, ID, attributes, expected, value_column, count_column) =>
-  let reduced_data = Table.SelectColumns(data, List.Combine({ID, attributes})),
-  grouped = Table.Group(reduced_data, ID, {{"Chi Square", each
-    let pivotted = Table.UnpivotOtherColumns(_, ID, "Attribute", "Value"),
-    joined = Table.NestedJoin(expected, {value_column}, pivotted, {"Value"}, "Chi Square", JoinKind.LeftOuter),
-    with_rowcounts = Table.AddColumn(joined, "squared deviations", each 
+  let reduced_data = Table.SelectColumns(data, List.Combine({ID, attributes})), // Reduce input data to only the ID(s) and attribute(s)
+  grouped = Table.Group(reduced_data, ID, {{"Chi Square", each // Calculate the return value using a grouping function. This has a side benefit of returning only the ID(s) and the output statistic, but may be worthwhile to re-do this using Table.AddColumn
+    let pivotted = Table.UnpivotOtherColumns(_, ID, "Attribute", "Value"), // Change the data from wide to long format
+    joined = Table.NestedJoin(expected, {value_column}, pivotted, {"Value"}, "Chi Square", JoinKind.LeftOuter), // Join the observed and expected values. The observed values are a nested Table, but zero-counts are represented as Tables with 0 rows. 
+    with_rowcounts = Table.AddColumn(joined, "squared deviations", each // Calculate the deviations fro expected frequencies
       let count = Record.Field(_, count_column) in Number.Power(Table.RowCount([Chi Square]) - count, 2) / count)
-    in List.Sum(with_rowcounts[squared deviations])
+    in List.Sum(with_rowcounts[squared deviations]) // return the sum of the deviations
   }})
- 
   in grouped
 ```
 
